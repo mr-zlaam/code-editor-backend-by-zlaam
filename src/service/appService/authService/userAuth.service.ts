@@ -137,7 +137,7 @@ export const usrAuthService = (db: DatabaseClient) => {
     const isPasswordMatch = await verifyPassword(password, user.password, res);
     if (!isPasswordMatch) {
       logger.info("Incorrect password");
-      throwError(reshttp.notFoundCode, "Invalid Credentials");
+      throwError(reshttp.unauthorizedCode, "Invalid Credentials");
     }
     if (!user.isVerified) {
       logger.info("User is not verified so he/she can't login");
