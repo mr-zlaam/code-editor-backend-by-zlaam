@@ -30,7 +30,6 @@ export const registerUserSchemaZ = z.object({
     .min(8, "password must be atleast 8 characters")
     .max(100, "password can only have 100 characters"),
   isVerified: z.boolean().default(false),
-  countryCode: z.string({ message: "countryCode must be string" }),
 });
 
 export const resendOTPSchemaZ = z.object({

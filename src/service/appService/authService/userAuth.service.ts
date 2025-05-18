@@ -53,7 +53,7 @@ export const usrAuthService = (db: DatabaseClient) => {
         ...user,
         OTP_TOKEN: OTP_TOKEN,
         password: hashedPassword,
-        role: isAdmin(user.email) ? "ADMIN" : user.role,
+        role: isAdmin(user.email) ? "ADMIN" : "USER",
         isVerified: isAdmin(user.email) ? true : false,
       })
       .then(async () =>
