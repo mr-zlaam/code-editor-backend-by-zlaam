@@ -1,6 +1,4 @@
 import { z } from "zod";
-import { phoneSchema } from "./auth.validation";
-import { validateAndFormatPhone } from "../../util/appUtil/authUtil/phonevalidator.util";
 // ** @description: This file contains the validation schema for updating user information username,fullName, phone,companyURI(optional), companyName(optional).
 export const updateUserSchemaZ = z.object({
   username: z
@@ -18,20 +16,6 @@ export const updateUserSchemaZ = z.object({
     .min(3, "fullName required atleast 3 characters")
     .max(50, "fullName can only have 50 characters")
     .regex(/^[A-Za-z\s]+$/, "fullName can only have spaces and alphabets"),
-
-  phone: phoneSchema.transform((val) => {
-    const result = validateAndFormatPhone(val);
-    return result?.isValid ? result.formattedNumber : val;
-  }),
-  companyName: z
-    .string({ message: "companyName must be string" })
-    .max(50, "companyName can only have 50 characters")
-    .optional(),
-  companyURI: z
-    .string({ message: "companyURI must be string" })
-    .max(1000, "companyURI can only have 1000 characters")
-    .url("companyURI must be a valid URL")
-    .optional(),
 });
 
 // ** @description: This file contains the validation schema for updating user information about email.

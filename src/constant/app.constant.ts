@@ -2,6 +2,7 @@ import type ms from "ms";
 import envConfig from "../config/env.config";
 import type { ICOOKIEOPTIONS } from "../type/types";
 import type { CorsOptions } from "cors";
+import { throwError } from "../util/globalUtil/throwError.util";
 export default {
   COMPANY_NAME: "B2B",
   OTP_EXPIRY: "30m" as number | ms.StringValue | undefined,
@@ -45,6 +46,14 @@ export default {
   CORS_OPTIONS: {
     methods: ["GET", "OPTIONS", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
     credentials: true,
-    origin: envConfig.ALLOWED_REGIONS,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      if (envConfig.ALLOWED_REGIONS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(throwError(403, "Origin not allowed"));
+      }
+    },
   } as CorsOptions,
 };
