@@ -106,7 +106,12 @@ class GetUserController {
       where: eq(userSchema.username, username),
       columns: appConstant.SELECTED_COLUMNS.FROM.USER,
       with: {
-        projects: { with: { codeContainers: true, workspaces: { with: { folders: true } } } },
+        projects: {
+          with: {
+            codeContainers: true,
+            workspaces: { with: { folders: true } },
+          },
+        },
       },
     });
     if (!user) return throwError(reshttp.notFoundCode, "User not found");
@@ -126,7 +131,12 @@ class GetUserController {
       where: eq(userSchema.uid, uid),
       columns: appConstant.SELECTED_COLUMNS.FROM.USER,
       with: {
-        projects: { with: { codeContainers: true, workspaces: { with: { folders: true } } } },
+        projects: {
+          with: {
+            codeContainers: true,
+            workspaces: { with: { folders: true } },
+          },
+        },
       },
     });
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, { data: user });

@@ -18,14 +18,17 @@ export const projectRelations = relations(projectSchema, ({ one, many }) => ({
   codeContainers: many(codeContainerSchema),
 }));
 
-export const workspaceRelations = relations(workspaceSchema, ({ one, many }) => ({
-  project: one(projectSchema, {
-    fields: [workspaceSchema.projectId],
-    references: [projectSchema.id],
+export const workspaceRelations = relations(
+  workspaceSchema,
+  ({ one, many }) => ({
+    project: one(projectSchema, {
+      fields: [workspaceSchema.projectId],
+      references: [projectSchema.id],
+    }),
+    folders: many(folderSchema),
+    codeContainers: many(codeContainerSchema),
   }),
-  folders: many(folderSchema),
-  codeContainers: many(codeContainerSchema),
-}));
+);
 
 export const folderRelations = relations(folderSchema, ({ one, many }) => ({
   workspace: one(workspaceSchema, {
@@ -39,13 +42,16 @@ export const folderRelations = relations(folderSchema, ({ one, many }) => ({
   subFolders: many(folderSchema),
 }));
 
-export const codeContainerRelations = relations(codeContainerSchema, ({ one }) => ({
-  project: one(projectSchema, {
-    fields: [codeContainerSchema.projectId],
-    references: [projectSchema.id],
+export const codeContainerRelations = relations(
+  codeContainerSchema,
+  ({ one }) => ({
+    project: one(projectSchema, {
+      fields: [codeContainerSchema.projectId],
+      references: [projectSchema.id],
+    }),
+    workspace: one(workspaceSchema, {
+      fields: [codeContainerSchema.workspaceId],
+      references: [workspaceSchema.id],
+    }),
   }),
-  workspace: one(workspaceSchema, {
-    fields: [codeContainerSchema.workspaceId],
-    references: [workspaceSchema.id],
-  }),
-}));
+);

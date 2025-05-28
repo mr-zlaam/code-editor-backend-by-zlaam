@@ -2,7 +2,13 @@ import { userSchema } from "./authSchema";
 import { codeContainerSchema } from "./codeContainerSchema";
 import { folderSchema } from "./folderSchema";
 import { projectSchema } from "./projectSchema";
-import { codeContainerRelations, folderRelations, projectRelations, userRelations, workspaceRelations } from "./shared/relations";
+import {
+  codeContainerRelations,
+  folderRelations,
+  projectRelations,
+  userRelations,
+  workspaceRelations,
+} from "./shared/relations";
 import { workspaceSchema } from "./workspaceSchema";
 
 export const schema = {
@@ -15,6 +21,6 @@ export const schema = {
   codeContainerRelations,
   folderRelations,
   projectRelations,
-  workspaceRelations
+  workspaceRelations,
 };
 export type TSCHEMA = typeof schema;
