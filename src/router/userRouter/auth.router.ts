@@ -10,6 +10,7 @@ import { database } from "../../db/db";
 import rateLimiterMiddleware from "../../middleware/globalMiddleware/ratelimiter.middleware";
 import { authMiddleware } from "../../middleware/globalMiddleware/auth.middleware";
 import { getUserController } from "../../controller/userController/getUser.controller";
+import { httpResponse } from "../../util/globalUtil/apiResponse.util";
 export const authRouter: Router = Router();
 // ** Register User
 authRouter
@@ -83,3 +84,8 @@ authRouter
     authMiddleware(database.db).checkIfUserIsAdmin,
     getUserController(database.db).getSingleUser,
   );
+authRouter
+  .route("/checkUser")
+  .get(authMiddleware(database.db).checkToken, (req, res) => {
+    httpResponse(req, res, 200, "You are logged in");
+  });

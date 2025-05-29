@@ -45,6 +45,12 @@ export default {
   },
   CORS_OPTIONS: {
     methods: ["GET", "OPTIONS", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Access-Control-Allow-Origin",
+    ],
     credentials: true,
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);

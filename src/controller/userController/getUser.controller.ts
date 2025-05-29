@@ -130,14 +130,6 @@ class GetUserController {
     const user = await this._db.query.users.findFirst({
       where: eq(userSchema.uid, uid),
       columns: appConstant.SELECTED_COLUMNS.FROM.USER,
-      with: {
-        projects: {
-          with: {
-            codeContainers: true,
-            workspaces: { with: { folders: true } },
-          },
-        },
-      },
     });
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, { data: user });
   });
