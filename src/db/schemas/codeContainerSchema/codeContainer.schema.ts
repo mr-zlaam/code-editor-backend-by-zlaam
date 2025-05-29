@@ -1,5 +1,4 @@
 import {
-  boolean,
   text,
   pgTable,
   timestamp,
@@ -10,6 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { projectSchema } from "../projectSchema";
 import { workspaceSchema } from "../workspaceSchema";
+import { containerStatusEnum } from "../shared/enums";
 export const codeContainerSchema = pgTable(
   "codeContainers",
   {
@@ -20,7 +20,7 @@ export const codeContainerSchema = pgTable(
     codeContainerDescription: varchar("codeContainerDescription", {
       length: 500,
     }),
-    isContainerRunning: boolean("isContainerRunning").notNull().default(false),
+    containerStatus: containerStatusEnum().default("STOPPED"),
     projectId: integer("projectId")
       .notNull()
       .references(() => projectSchema.id, {
@@ -29,7 +29,10 @@ export const codeContainerSchema = pgTable(
     workspaceId: integer("workspaceId").references(() => workspaceSchema.id, {
       onDelete: "set null",
     }), // Optional: Link container to a workspace
-    containerId: varchar("containerId", { length: 200 }).notNull().unique(),
+    containerId: varchar("containerId", { length: 200 })
+      .notNull()
+      .unique()
+      .default(""),
     environmentConfig: text("environmentConfig"), // JSON string for language support (e.g., {"node": "18", "python": "3.9"})
     createdAt: timestamp("createdAt", {
       mode: "date",
@@ -48,7 +51,7 @@ export const codeContainerSchema = pgTable(
   (table) => [
     index("codeContainer_projectId_idx").on(table.projectId),
     index("codeContainer_workspaceId_idx").on(table.workspaceId),
-    index("codeContainer_isContainerRunning_idx").on(table.isContainerRunning),
+    index("codeContainer_isContainerRunning_idx").on(table.containerStatus),
   ],
 );
 

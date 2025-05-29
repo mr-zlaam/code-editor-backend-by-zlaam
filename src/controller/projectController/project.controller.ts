@@ -1,5 +1,9 @@
 import { count, and, eq } from "drizzle-orm";
-import { projectSchema, type TPROJECT } from "../../db/schemas/";
+import {
+  codeContainerSchema,
+  projectSchema,
+  type TPROJECT,
+} from "../../db/schemas/";
 import { asyncHandler } from "../../util/globalUtil/asyncHandler.util";
 import { httpResponse } from "../../util/globalUtil/apiResponse.util";
 import { throwError } from "../../util/globalUtil/throwError.util";
@@ -8,6 +12,7 @@ import type { DatabaseClient } from "../../db/db";
 import logger from "../../util/globalUtil/logger.util";
 import type { _Request } from "../../middleware/globalMiddleware/auth.middleware";
 import type { IPAGINATION } from "../../type/types";
+import { generateSlug } from "../../util/quickUtil/slugStringGenerator.util";
 
 class ProjectController {
   private readonly _db: DatabaseClient;
@@ -33,18 +38,35 @@ class ProjectController {
       logger.warn("Unauthorized attempt to create project: No user ID found");
       return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
     }
+    const checkIfProjectWithSameNameAlreadyExists = await this._db
+      .select()
+      .from(projectSchema)
+      .where(eq(projectSchema.projectName, projectName));
+    if (checkIfProjectWithSameNameAlreadyExists.length > 0) {
+      logger.info("Project with same name already exists for user");
+      return throwError(reshttp.conflictCode, reshttp.conflictMessage);
+    }
 
-    // Insert new project
-    await this._db
-      .insert(projectSchema)
-      .values({
-        projectName: projectName,
-        projectDescription,
-        userId,
+    await this._db.transaction(async (tx) => {
+      const [createdProject] = await tx
+        .insert(projectSchema)
+        .values({
+          projectName: projectName,
+          projectDescription,
+          userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+      await tx.insert(codeContainerSchema).values({
+        codeContainerName: generateSlug(createdProject.projectName),
+        projectId: createdProject.id,
+        containerId: "",
+        containerStatus: "STOPPED",
         createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
+        environmentConfig: "",
+      });
+    });
 
     logger.info(`Project created:  for user ${userId}`);
 
@@ -69,15 +91,13 @@ class ProjectController {
       return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
     }
 
-    const [project] = await this._db
-      .select()
-      .from(projectSchema)
-      .where(
-        and(
-          eq(projectSchema.id, Number(projectId)),
-          eq(projectSchema.userId, userId),
-        ),
-      );
+    const project = await this._db.query.project.findFirst({
+      where: and(
+        eq(projectSchema.id, Number(projectId)),
+        eq(projectSchema.userId, userId),
+      ),
+      with: { codeContainers: true },
+    });
     if (!project) {
       logger.warn(`Project ${projectId} not found for user ${userId}`);
       throwError(reshttp.notFoundCode, "Project not found");
@@ -212,13 +232,14 @@ class ProjectController {
     const totalPage = Math.ceil(totalRecord / pageSize);
 
     // Fetch paginated projects
-    const projects = await this._db
-      .select()
-      .from(projectSchema)
-      .where(eq(projectSchema.userId, userId))
-      .limit(pageSize)
-      .offset(offset);
-
+    const projects = await this._db.query.project.findMany({
+      where: eq(projectSchema.userId, userId),
+      offset,
+      limit: pageSize,
+      with: {
+        codeContainers: true,
+      },
+    });
     // Build pagination metadata
     const pagination: IPAGINATION = {
       currentPage: page,
@@ -235,10 +256,8 @@ class ProjectController {
 
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Projects retrieved successfully",
-      data: {
-        projects,
-        pagination,
-      },
+      projects: { ...projects },
+      pagination,
     });
   });
 }

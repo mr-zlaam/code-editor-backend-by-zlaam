@@ -4,4 +4,9 @@ import { pgEnum } from "drizzle-orm/pg-core";
 export const userRoleEnum = pgEnum("role", ["ADMIN", "USER", "MODERATOR"]);
 
 export type TCURRENTROLE = (typeof userRoleEnum.enumValues)[number];
-// ** Onboarding enum */
+
+export const containerStatusEnum = pgEnum("containerStatus", [
+  "RUNNING",
+  "STOPPED",
+]);
+export type TCONTAINERSTATUS = (typeof containerStatusEnum.enumValues)[number];

@@ -15,7 +15,10 @@ export const projectRelations = relations(projectSchema, ({ one, many }) => ({
     references: [userSchema.uid],
   }),
   workspaces: many(workspaceSchema),
-  codeContainers: many(codeContainerSchema),
+  codeContainers: one(codeContainerSchema, {
+    fields: [projectSchema.id],
+    references: [codeContainerSchema.projectId],
+  }),
 }));
 
 export const workspaceRelations = relations(
