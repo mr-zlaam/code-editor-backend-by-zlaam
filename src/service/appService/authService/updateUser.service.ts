@@ -66,7 +66,7 @@ export const userUpdateService = (db: DatabaseClient) => {
   };
   const forgotPasswordRequestFromUserService = async (email: string) => {
     const user = await userRepo(db).getUserByEmail(email);
-    const verificationUrl = `${envConfig.FRONTEND_APP_URI}/resetAndUpdateNewPassword?token=${user.OTP_TOKEN}`;
+    const verificationUrl = `${envConfig.FRONTEND_APP_URI}/auth/resetAndUpdateNewPassword?token=${user.OTP_TOKEN}`;
     await gloabalMailMessage(
       email,
       emailResponsesConstant.SEND_OTP_FOR_RESET_PASSWORD_REQUEST(

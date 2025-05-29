@@ -4,7 +4,7 @@ import { gloabalMailMessage } from "../../service/globalService/globalEmail.serv
 import logger from "../globalUtil/logger.util";
 
 export const sendVerificationEmail = async (email: string, token: string) => {
-  const verificationUrl = `${envConfig.FRONTEND_APP_URI}/verify?token=${token}`;
+  const verificationUrl = `${envConfig.FRONTEND_APP_URI}/auth/verify?token=${token}`;
   logger.info(verificationUrl);
   const emailContent = emailResponsesConstant.OTP_SENDER_MESSAGE(
     verificationUrl,

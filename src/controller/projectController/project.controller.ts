@@ -20,6 +20,12 @@ class ProjectController {
   public createProject = asyncHandler(async (req: _Request, res) => {
     // TODO: Validate req.body with Zod middleware (projectName: string, projectDescription?: string)
     const { projectName, projectDescription } = req.body as TPROJECT;
+    if (projectName === "" || projectName.length < 3) {
+      return throwError(
+        reshttp.badRequestCode,
+        "Project name must be at least 3 characters long",
+      );
+    }
 
     // Ensure user is authenticated (uid from JWT middleware)
     const userId = req.userFromToken?.uid;
