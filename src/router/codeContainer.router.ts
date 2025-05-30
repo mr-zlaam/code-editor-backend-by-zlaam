@@ -10,3 +10,10 @@ codeContainerRouter
     authMiddleware(database.db).checkToken,
     codeContainerController(database.db).runCodeContainer,
   );
+
+codeContainerRouter
+  .route("/stopContainer")
+  .patch(
+    authMiddleware(database.db).checkToken,
+    codeContainerController(database.db).stopContainer,
+  );

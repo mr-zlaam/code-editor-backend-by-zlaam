@@ -137,6 +137,54 @@ class CodeContainerController {
       },
     });
   });
+  public stopContainer = asyncHandler(async (req: _Request, res) => {
+    const { containerName, codeContainerId, projectId } = req.body as {
+      codeContainerId: number;
+      projectId: number;
+      containerName: string;
+    };
+    const intContainerId = Number(codeContainerId);
+    const intProjectId = Number(projectId);
+    if (!intContainerId) {
+      logger.info("Container id is required");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+    if (!intProjectId) {
+      logger.info("Project id is required");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+    if (!containerName) {
+      logger.info("Container name is required");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+    const stoppedContainer = await this._db.query.codeContainer.findFirst({
+      where: and(
+        eq(codeContainerSchema.id, intContainerId),
+        eq(codeContainerSchema.projectId, intProjectId),
+        eq(codeContainerSchema.containerStatus, "RUNNING"),
+      ),
+    });
+    if (!stoppedContainer) {
+      logger.info("Container not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
+    const dockerContainer = this._docker.getContainer(
+      stoppedContainer.codeContainerName,
+    );
+    await dockerContainer.stop();
+    await this._db
+      .update(codeContainerSchema)
+      .set({ containerStatus: "STOPPED" })
+      .where(
+        and(
+          eq(codeContainerSchema.id, intContainerId),
+          eq(codeContainerSchema.projectId, intProjectId),
+        ),
+      );
+    httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
+      message: "Container stopped successfully",
+    });
+  });
 }
 export const codeContainerController = (db: DatabaseClient) =>
   new CodeContainerController(db);
