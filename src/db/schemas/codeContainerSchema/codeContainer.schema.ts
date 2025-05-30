@@ -31,6 +31,7 @@ export const codeContainerSchema = pgTable(
     }), // Optional: Link container to a workspace
     containerId: varchar("containerId", { length: 200 }).notNull().default(""),
     environmentConfig: text("environmentConfig"), // JSON string for language support (e.g., {"node": "18", "python": "3.9"})
+    containerURI: text("containerURI").notNull().default(""),
     createdAt: timestamp("createdAt", {
       mode: "date",
       precision: 3,

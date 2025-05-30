@@ -24,12 +24,12 @@ CREATE TABLE "codeContainers" (
 	"containerStatus" "containerStatus" DEFAULT 'STOPPED',
 	"projectId" integer NOT NULL,
 	"workspaceId" integer,
-	"containerId" varchar(200) NOT NULL,
+	"containerId" varchar(200) DEFAULT '' NOT NULL,
 	"environmentConfig" text,
+	"containerURI" text DEFAULT '' NOT NULL,
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
 	"updatedAt" timestamp (3) DEFAULT now() NOT NULL,
-	CONSTRAINT "codeContainers_codeContainerName_unique" UNIQUE("codeContainerName"),
-	CONSTRAINT "codeContainers_containerId_unique" UNIQUE("containerId")
+	CONSTRAINT "codeContainers_codeContainerName_unique" UNIQUE("codeContainerName")
 );
 --> statement-breakpoint
 CREATE TABLE "folders" (

@@ -22,29 +22,38 @@ class CodeContainerController {
   public runCodeContainer = asyncHandler(async (req: _Request, res) => {
     const { codeContainerId } = req.params;
     const userId = req.userFromToken!.uid;
+    const { projectId } = req.query as { projectId: string };
+    const intProjectId = Number(projectId);
     if (!codeContainerId) {
       logger.info("Code container id is required!");
       return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
     }
     const intContainerId = Number(codeContainerId);
-    const { projectId } = req.query as { projectId: string };
     if (!projectId) {
       logger.info("Project id is required!");
       return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
     }
-    const intProjectId = Number(projectId);
-    const stoppedContainer = await this._db.query.codeContainer.findFirst({
+    //**  if container is running then return container configuration otherwise continue
+    const currentContainer = await this._db.query.codeContainer.findFirst({
       where: and(
         eq(codeContainerSchema.id, intContainerId),
         eq(codeContainerSchema.projectId, intProjectId),
       ),
     });
-    //** user can't create or run the container if any other container connected to him is already running */
-    if (!stoppedContainer) {
-      logger.info("Container not found");
+    if (!currentContainer)
       return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    if (currentContainer.containerStatus === "RUNNING") {
+      return httpResponse(req, res, 200, "Container is already running", {
+        projectConfig: {
+          containerName: currentContainer.codeContainerName,
+          status: "RUNNING",
+          terminalPath: `/home/${currentContainer.codeContainerName}`,
+          url: currentContainer.containerURI,
+        },
+      });
     }
-    const getProjectWithContainerRunning =
+
+    const isThereAnyContainerRunningForCurrentUser =
       await this._db.query.project.findFirst({
         where: and(
           eq(projectSchema.userId, userId),
@@ -53,16 +62,26 @@ class CodeContainerController {
         with: { codeContainers: { columns: { containerStatus: true } } },
       });
     if (
-      getProjectWithContainerRunning?.codeContainers.containerStatus ===
-      "RUNNING"
+      isThereAnyContainerRunningForCurrentUser?.codeContainers
+        .containerStatus === "RUNNING"
     ) {
-      logger.info(
-        "Container is already running. Since user can run only one container at one time",
-      );
+      logger.info("Other Container is already running");
       return throwError(
         reshttp.badRequestCode,
-        "An another container is running from your quota",
+        "Please stop other project to start this one",
       );
+    }
+    const stoppedContainer = await this._db.query.codeContainer.findFirst({
+      where: and(
+        eq(codeContainerSchema.id, intContainerId),
+        eq(codeContainerSchema.projectId, intProjectId),
+        eq(codeContainerSchema.containerStatus, "STOPPED"),
+      ),
+    });
+    //** user can't create or run the container if any other container connected to him is already running */
+    if (!stoppedContainer) {
+      logger.info("Container not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
     }
     // Check for a free port starting from generated port
     let port = generatePort(stoppedContainer.codeContainerName);
@@ -84,23 +103,12 @@ class CodeContainerController {
       tryPort(port);
     });
     port = await findFreePort;
-    const containerConfig = returnDockerConfig(stoppedContainer, port);
-    // Check if a container with the same name exists and remove it
-    const existingContainer = this._docker.getContainer(
-      stoppedContainer.codeContainerName,
+    const containerConfig = returnDockerConfig(
+      stoppedContainer,
+      port,
+      stoppedContainer.codeContainerName.split("_")[0],
     );
-    await existingContainer
-      .inspect()
-      .then(async () => {
-        await existingContainer.remove({ force: true });
-        logger.info(
-          `Cleaned up existing container ${stoppedContainer.codeContainerName}`,
-        );
-      })
-      .catch(() => {
-        // Ignore if container doesn't exist
-      });
-    // Create and start new container
+    // Check if a container with the same name exists and remove it
     const dockerContainer = await this._docker.createContainer(containerConfig);
     await dockerContainer.start();
     logger.info(
@@ -112,8 +120,14 @@ class CodeContainerController {
         containerStatus: "RUNNING",
         codeContainerDescription: `Docker container ${stoppedContainer.codeContainerName} started successfully on port ${port}`,
         containerId: dockerContainer.id,
+        containerURI: `http://localhost:${port}`,
       })
-      .where(eq(codeContainerSchema.id, intContainerId));
+      .where(
+        and(
+          eq(codeContainerSchema.id, intContainerId),
+          eq(codeContainerSchema.projectId, intProjectId),
+        ),
+      );
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       projectConfig: {
         containerName: stoppedContainer.codeContainerName,

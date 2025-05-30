@@ -1,1 +1,0 @@
-ALTER TABLE "codeContainers" ALTER COLUMN "containerId" SET DEFAULT '';

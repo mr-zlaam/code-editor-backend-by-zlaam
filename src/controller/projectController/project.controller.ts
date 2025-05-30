@@ -12,6 +12,7 @@ import type { DatabaseClient } from "../../db/db";
 import logger from "../../util/globalUtil/logger.util";
 import type { _Request } from "../../middleware/globalMiddleware/auth.middleware";
 import type { IPAGINATION } from "../../type/types";
+import Docker from "dockerode";
 import {
   generateRandomStrings,
   generateSlug,
@@ -19,9 +20,11 @@ import {
 
 class ProjectController {
   private readonly _db: DatabaseClient;
+  private _docker: Docker;
 
   constructor(db: DatabaseClient) {
     this._db = db;
+    this._docker = new Docker();
   }
 
   // Create a new project
@@ -170,6 +173,10 @@ class ProjectController {
   public deleteProject = asyncHandler(async (req: _Request, res) => {
     // TODO: Validate req.params.id with Zod middleware (id: number)
     const projectId = parseInt(req.params.id, 10);
+    const { containerName } = req.query as { containerName: string };
+    if (!containerName) {
+      return throwError(reshttp.badRequestCode, "Container name is required");
+    }
     if (isNaN(projectId)) {
       logger.warn("Invalid project ID provided");
       return throwError(reshttp.badRequestCode, "Invalid project ID");
@@ -183,22 +190,22 @@ class ProjectController {
     }
 
     // Check if project exists and belongs to user
-    const [existingProject] = await this._db
-      .select()
-      .from(projectSchema)
-      .where(
-        and(
+    const existingProjectWithContainers =
+      await this._db.query.project.findFirst({
+        where: and(
           eq(projectSchema.id, Number(projectId)),
           eq(projectSchema.userId, userId),
         ),
-      )
-      .limit(1);
-
-    if (!existingProject) {
+        with: { codeContainers: true },
+      });
+    if (!existingProjectWithContainers) {
       logger.warn(`Project ${projectId} not found for user ${userId}`);
       return throwError(reshttp.notFoundCode, "Project not found");
     }
-
+    const container = this._docker.getContainer(containerName);
+    await container.stop();
+    await container.remove();
+    console.info("Container stopped and removed");
     // Delete project (cascades to workspaces and containers)
     await this._db.delete(projectSchema).where(eq(projectSchema.id, projectId));
 
@@ -250,12 +257,6 @@ class ProjectController {
       hasNextPage: page < totalPage,
       hasPreviousPage: page > 1,
     };
-
-    logger.info(
-      `Fetched ${projects.length} projects for user ${userId} (page ${page}, size ${pageSize})`,
-      { projects, pagination },
-    );
-
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Projects retrieved successfully",
       projects,

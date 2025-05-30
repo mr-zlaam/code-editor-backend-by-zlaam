@@ -4,6 +4,7 @@ import { updateUserRouter } from "./userRouter/updateUser.router";
 import { projectRouter } from "./projectRouter/project.router";
 import { workspaceRouter } from "./workspaceRouter/workspace.router";
 import { folderRouter } from "./folderRouter/folder.router";
+import { codeContainerRouter } from "./codeContainer.router";
 export const defaultRouter: Router = Router();
 
 // *** User
@@ -17,3 +18,4 @@ defaultRouter.use("/workspace", workspaceRouter);
 defaultRouter.use("/folder", folderRouter);
 
 // *** code container
+defaultRouter.use("/codeContainer", codeContainerRouter);
