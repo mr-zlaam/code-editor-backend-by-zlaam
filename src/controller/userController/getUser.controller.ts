@@ -131,7 +131,7 @@ class GetUserController {
       where: eq(userSchema.uid, uid),
       columns: appConstant.SELECTED_COLUMNS.FROM.USER,
     });
-    httpResponse(req, res, reshttp.okCode, reshttp.okMessage, { data: user });
+    httpResponse(req, res, reshttp.okCode, reshttp.okMessage, { user });
   });
 }
 export const getUserController = (db: DatabaseClient) =>
