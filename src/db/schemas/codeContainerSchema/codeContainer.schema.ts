@@ -29,10 +29,7 @@ export const codeContainerSchema = pgTable(
     workspaceId: integer("workspaceId").references(() => workspaceSchema.id, {
       onDelete: "set null",
     }), // Optional: Link container to a workspace
-    containerId: varchar("containerId", { length: 200 })
-      .notNull()
-      .unique()
-      .default(""),
+    containerId: varchar("containerId", { length: 200 }).notNull().default(""),
     environmentConfig: text("environmentConfig"), // JSON string for language support (e.g., {"node": "18", "python": "3.9"})
     createdAt: timestamp("createdAt", {
       mode: "date",

@@ -24,13 +24,13 @@ projectRouter
     projectController(database.db).getAllProjects,
   );
 projectRouter
-  .route("/updateProject")
+  .route("/updateProject/:id")
   .patch(
     authMiddleware(database.db).checkToken,
     projectController(database.db).updateProject,
   );
 projectRouter
-  .route("/deleteProject")
+  .route("/deleteProject/:id")
   .delete(
     authMiddleware(database.db).checkToken,
     projectController(database.db).deleteProject,

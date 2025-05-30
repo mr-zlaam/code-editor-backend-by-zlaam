@@ -12,7 +12,10 @@ import type { DatabaseClient } from "../../db/db";
 import logger from "../../util/globalUtil/logger.util";
 import type { _Request } from "../../middleware/globalMiddleware/auth.middleware";
 import type { IPAGINATION } from "../../type/types";
-import { generateSlug } from "../../util/quickUtil/slugStringGenerator.util";
+import {
+  generateRandomStrings,
+  generateSlug,
+} from "../../util/quickUtil/slugStringGenerator.util";
 
 class ProjectController {
   private readonly _db: DatabaseClient;
@@ -38,20 +41,12 @@ class ProjectController {
       logger.warn("Unauthorized attempt to create project: No user ID found");
       return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
     }
-    const checkIfProjectWithSameNameAlreadyExists = await this._db
-      .select()
-      .from(projectSchema)
-      .where(eq(projectSchema.projectName, projectName));
-    if (checkIfProjectWithSameNameAlreadyExists.length > 0) {
-      logger.info("Project with same name already exists for user");
-      return throwError(reshttp.conflictCode, reshttp.conflictMessage);
-    }
 
     await this._db.transaction(async (tx) => {
       const [createdProject] = await tx
         .insert(projectSchema)
         .values({
-          projectName: projectName,
+          projectName: `${projectName}_${generateRandomStrings(5)}`,
           projectDescription,
           userId,
           createdAt: new Date(),
@@ -111,8 +106,8 @@ class ProjectController {
     });
   });
 
-  // Update a project
   public updateProject = asyncHandler(async (req: _Request, res) => {
+    // Update a project
     // TODO: Validate req.params.id and req.body with Zod middleware (id: number, projectName?: string, projectDescription?: string)
     const projectId = parseInt(req.params.id, 10);
     if (isNaN(projectId)) {
@@ -121,6 +116,12 @@ class ProjectController {
     }
 
     const { projectName, projectDescription } = req.body as Partial<TPROJECT>;
+    if (!projectName || projectName.length < 3) {
+      return throwError(
+        reshttp.badRequestCode,
+        "Project name must be at least 3 characters long",
+      );
+    }
 
     // Ensure user is authenticated
     const userId = req.userFromToken?.uid;
@@ -150,7 +151,7 @@ class ProjectController {
     await this._db
       .update(projectSchema)
       .set({
-        projectName: projectName ?? existingProject.projectName,
+        projectName: projectName + `_${generateRandomStrings(5)}`,
         projectDescription:
           projectDescription ?? existingProject.projectDescription,
         updatedAt: new Date(),
@@ -252,11 +253,12 @@ class ProjectController {
 
     logger.info(
       `Fetched ${projects.length} projects for user ${userId} (page ${page}, size ${pageSize})`,
+      { projects, pagination },
     );
 
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Projects retrieved successfully",
-      projects: { ...projects },
+      projects,
       pagination,
     });
   });

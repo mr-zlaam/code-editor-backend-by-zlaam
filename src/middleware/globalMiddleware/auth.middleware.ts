@@ -22,7 +22,7 @@ class Authmiddleware {
     const accessToken = req.header("Authorization");
     if (!accessToken) {
       logger.warn("access token is not provided with this request");
-      throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
+      throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage + "401");
     }
     const parsedToken = accessToken?.split("Bearer ")[1] || "";
     if (parsedToken === undefined) {
