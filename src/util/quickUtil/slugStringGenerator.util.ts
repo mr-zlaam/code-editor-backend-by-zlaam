@@ -84,3 +84,9 @@ export function cleanFileName(path: string) {
 
   return cleaned + extension;
 }
+export const generatePort = (containerId: string): number => {
+  const hash = containerId
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return 30000 + (hash % 1000);
+};

@@ -52,9 +52,5 @@ export const codeContainerRelations = relations(
       fields: [codeContainerSchema.projectId],
       references: [projectSchema.id],
     }),
-    workspace: one(workspaceSchema, {
-      fields: [codeContainerSchema.workspaceId],
-      references: [workspaceSchema.id],
-    }),
   }),
 );
