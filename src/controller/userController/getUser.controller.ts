@@ -131,6 +131,7 @@ class GetUserController {
       where: eq(userSchema.uid, uid),
       columns: appConstant.SELECTED_COLUMNS.FROM.USER,
     });
+    if (!user) return throwError(reshttp.notFoundCode, "User not found");
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, { user });
   });
 }

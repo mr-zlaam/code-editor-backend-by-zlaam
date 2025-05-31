@@ -44,7 +44,16 @@ class ProjectController {
       logger.warn("Unauthorized attempt to create project: No user ID found");
       return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
     }
-
+    const isExitingProjectActive = await this._db.query.project.findFirst({
+      where: and(eq(projectSchema.userId, userId)),
+      with: { codeContainers: { columns: { containerStatus: true } } },
+    });
+    if (isExitingProjectActive?.codeContainers.containerStatus === "RUNNING") {
+      return throwError(
+        reshttp.conflictCode,
+        "Cannot Create Project while another project is running",
+      );
+    }
     await this._db.transaction(async (tx) => {
       const [createdProject] = await tx
         .insert(projectSchema)
