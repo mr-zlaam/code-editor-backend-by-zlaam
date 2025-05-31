@@ -203,7 +203,11 @@ class ProjectController {
       return throwError(reshttp.notFoundCode, "Project not found");
     }
     const container = this._docker.getContainer(containerName);
-    await container.stop();
+    if (
+      existingProjectWithContainers.codeContainers.containerStatus !== "STOPPED"
+    ) {
+      await container.stop();
+    }
     await container.remove();
     console.info("Container stopped and removed");
     // Delete project (cascades to workspaces and containers)
