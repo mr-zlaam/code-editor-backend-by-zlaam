@@ -79,6 +79,30 @@ class CodeContainerController {
       ),
     });
     //** user can't create or run the container if any other container connected to him is already running */
+    if (stoppedContainer?.containerId) {
+      // ** if stopped container has  container id its mean this container was running once so we will start it from there where it stops
+      // ** run the container
+      await this._docker
+        .getContainer(stoppedContainer.codeContainerName)
+        .start();
+      await this._db
+        .update(codeContainerSchema)
+        .set({ containerStatus: "RUNNING" })
+        .where(
+          and(
+            eq(codeContainerSchema.id, intContainerId),
+            eq(codeContainerSchema.projectId, intProjectId),
+          ),
+        );
+      return httpResponse(req, res, 200, "Container is already running", {
+        projectConfig: {
+          containerName: stoppedContainer.codeContainerName,
+          status: "RUNNING",
+          terminalPath: `/home/${stoppedContainer.codeContainerName}`,
+          url: stoppedContainer.containerURI,
+        },
+      });
+    }
     if (!stoppedContainer) {
       logger.info("Container not found");
       return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
