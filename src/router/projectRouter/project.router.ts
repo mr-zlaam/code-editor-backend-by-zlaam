@@ -2,20 +2,17 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/globalMiddleware/auth.middleware";
 import { database } from "../../db/db";
 import { projectController } from "../../controller/projectController/project.controller";
+import { validator } from "../../middleware/globalMiddleware/validation.middleware";
+import { createProjectSchemaZ } from "../../validation/projectValidation/project.validation";
 
 export const projectRouter: Router = Router();
 
 projectRouter
   .route("/createProject")
   .post(
+    validator(createProjectSchemaZ),
     authMiddleware(database.db).checkToken,
     projectController(database.db).createProject,
-  );
-projectRouter
-  .route("/getSingleProject")
-  .get(
-    authMiddleware(database.db).checkToken,
-    projectController(database.db).getSingleProject,
   );
 projectRouter
   .route("/getAllProjects")

@@ -1,9 +1,5 @@
-import { count, and, eq } from "drizzle-orm";
-import {
-  codeContainerSchema,
-  projectSchema,
-  type TPROJECT,
-} from "../../db/schemas/";
+import { count, and, eq, ne, desc } from "drizzle-orm";
+import { folderSchema, projectSchema, type TPROJECT } from "../../db/schemas/";
 import { asyncHandler } from "../../util/globalUtil/asyncHandler.util";
 import { httpResponse } from "../../util/globalUtil/apiResponse.util";
 import { throwError } from "../../util/globalUtil/throwError.util";
@@ -12,167 +8,76 @@ import type { DatabaseClient } from "../../db/db";
 import logger from "../../util/globalUtil/logger.util";
 import type { _Request } from "../../middleware/globalMiddleware/auth.middleware";
 import type { IPAGINATION } from "../../type/types";
-import Docker from "dockerode";
-import {
-  generateRandomStrings,
-  generateSlug,
-} from "../../util/quickUtil/slugStringGenerator.util";
+import { generateSlug } from "../../util/quickUtil/slugStringGenerator.util";
 
 class ProjectController {
   private readonly _db: DatabaseClient;
-  private _docker: Docker;
 
   constructor(db: DatabaseClient) {
     this._db = db;
-    this._docker = new Docker();
   }
 
   // Create a new project
   public createProject = asyncHandler(async (req: _Request, res) => {
     // TODO: Validate req.body with Zod middleware (projectName: string, projectDescription?: string)
-    const { projectName, projectDescription } = req.body as TPROJECT;
-    if (projectName === "" || projectName.length < 3) {
-      return throwError(
-        reshttp.badRequestCode,
-        "Project name must be at least 3 characters long",
-      );
-    }
-
-    // Ensure user is authenticated (uid from JWT middleware)
-    const userId = req.userFromToken?.uid;
-    if (!userId) {
-      logger.warn("Unauthorized attempt to create project: No user ID found");
-      return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
-    }
-    const isExitingProjectActive = await this._db.query.project.findFirst({
-      where: and(eq(projectSchema.userId, userId)),
-      with: { codeContainers: { columns: { containerStatus: true } } },
-    });
-    if (isExitingProjectActive?.codeContainers.containerStatus === "RUNNING") {
-      return throwError(
-        reshttp.conflictCode,
-        "Cannot Create Project while another project is running",
-      );
-    }
-    await this._db.transaction(async (tx) => {
-      const [createdProject] = await tx
-        .insert(projectSchema)
-        .values({
-          projectName: `${projectName}_${generateRandomStrings(5)}`,
-          projectDescription,
-          userId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .returning();
-      await tx.insert(codeContainerSchema).values({
-        codeContainerName: generateSlug(createdProject.projectName),
-        projectId: createdProject.id,
-        containerId: "",
-        containerStatus: "STOPPED",
-        createdAt: new Date(),
-        environmentConfig: "",
+    const { projectName, configuration } = req.body as TPROJECT;
+    // ** Handle validation through zod in middleware
+    const userId = req.userFromToken!.uid;
+    const doesUserHaveProjectWithSameName =
+      await this._db.query.project.findFirst({
+        where: and(
+          eq(projectSchema.userId, userId),
+          eq(projectSchema.projectName, projectName),
+        ),
       });
+    if (doesUserHaveProjectWithSameName) {
+      return throwError(reshttp.badRequestCode, "Project name already exists");
+    }
+    await this._db.insert(projectSchema).values({
+      projectName,
+      projectNameSlug: generateSlug(projectName),
+      userId,
+      storage: "0",
+      configuration,
+      createdBy: userId,
     });
-
-    logger.info(`Project created:  for user ${userId}`);
-
     httpResponse(req, res, reshttp.createdCode, reshttp.createdMessage, {
       message: "Project created successfully",
     });
   });
-
-  // Get a specific project by ID
-  public getSingleProject = asyncHandler(async (req: _Request, res) => {
-    // TODO: Validate req.params.id with Zod middleware (id: number)
-    const projectId = parseInt(req.params.id, 10);
-    if (isNaN(projectId)) {
-      logger.warn("Invalid project ID provided");
-      return throwError(reshttp.badRequestCode, "Invalid project ID");
-    }
-
-    // Ensure user is authenticated
-    const userId = req.userFromToken?.uid;
-    if (!userId) {
-      logger.warn("Unauthorized attempt to get project: No user ID found");
-      return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
-    }
-
-    const project = await this._db.query.project.findFirst({
-      where: and(
-        eq(projectSchema.id, Number(projectId)),
-        eq(projectSchema.userId, userId),
-      ),
-      with: { codeContainers: true },
-    });
-    if (!project) {
-      logger.warn(`Project ${projectId} not found for user ${userId}`);
-      throwError(reshttp.notFoundCode, "Project not found");
-    }
-
-    logger.info(`Retrieved project ${projectId} for user ${userId}`);
-
-    httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
-      message: "Project retrieved successfully",
-      data: { project },
-    });
-  });
-
   public updateProject = asyncHandler(async (req: _Request, res) => {
-    // Update a project
-    // TODO: Validate req.params.id and req.body with Zod middleware (id: number, projectName?: string, projectDescription?: string)
     const projectId = parseInt(req.params.id, 10);
     if (isNaN(projectId)) {
       logger.warn("Invalid project ID provided");
       return throwError(reshttp.badRequestCode, "Invalid project ID");
     }
 
-    const { projectName, projectDescription } = req.body as Partial<TPROJECT>;
-    if (!projectName || projectName.length < 3) {
-      return throwError(
-        reshttp.badRequestCode,
-        "Project name must be at least 3 characters long",
-      );
-    }
-
-    // Ensure user is authenticated
-    const userId = req.userFromToken?.uid;
-    if (!userId) {
-      logger.warn("Unauthorized attempt to update project: No user ID found");
-      return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
-    }
-
-    // Check if project exists and belongs to user
-    const [existingProject] = await this._db
-      .select()
-      .from(projectSchema)
-      .where(
-        and(
-          eq(projectSchema.id, Number(projectId)),
+    const {
+      projectName: updatedProjectName,
+      configuration: updatedConfiguration,
+    } = req.body as TPROJECT;
+    // TODO: Validate req.body with Zod middleware (projectName?: string, projectDescription?: string)
+    const userId = req.userFromToken!.uid;
+    const doesUserHaveProjectWithSameName =
+      await this._db.query.project.findFirst({
+        where: and(
+          eq(projectSchema.projectName, updatedProjectName),
           eq(projectSchema.userId, userId),
+          ne(projectSchema.id, projectId),
         ),
-      )
-      .limit(1);
-
-    if (!existingProject) {
-      logger.warn(`Project ${projectId} not found for user ${userId}`);
-      return throwError(reshttp.notFoundCode, "Project not found");
+      });
+    if (doesUserHaveProjectWithSameName) {
+      return throwError(reshttp.badRequestCode, "Project name already exists");
     }
-
-    // Update project
     await this._db
       .update(projectSchema)
       .set({
-        projectName: projectName + `_${generateRandomStrings(5)}`,
-        projectDescription:
-          projectDescription ?? existingProject.projectDescription,
+        projectName: updatedProjectName,
+        configuration: updatedConfiguration,
+        projectNameSlug: generateSlug(updatedProjectName),
         updatedAt: new Date(),
       })
-      .where(eq(projectSchema.id, projectId))
-      .returning();
-
-    logger.info(`Updated project ${projectId} for user ${userId}`);
-
+      .where(eq(projectSchema.id, projectId));
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Project updated successfully",
     });
@@ -182,98 +87,80 @@ class ProjectController {
   public deleteProject = asyncHandler(async (req: _Request, res) => {
     // TODO: Validate req.params.id with Zod middleware (id: number)
     const projectId = parseInt(req.params.id, 10);
-    const { containerName } = req.query as { containerName: string };
-    if (!containerName) {
-      return throwError(reshttp.badRequestCode, "Container name is required");
-    }
     if (isNaN(projectId)) {
       logger.warn("Invalid project ID provided");
       return throwError(reshttp.badRequestCode, "Invalid project ID");
     }
-
-    // Ensure user is authenticated
-    const userId = req.userFromToken?.uid;
-    if (!userId) {
-      logger.warn("Unauthorized attempt to delete project: No user ID found");
-      return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
+    const checkIfProjectHasFolder = await this._db
+      .select()
+      .from(folderSchema)
+      .where(eq(folderSchema.projectId, projectId));
+    if (checkIfProjectHasFolder.length > 0) {
+      logger.info("Project cannot be deleted if it has folders");
+      return throwError(
+        reshttp.badRequestCode,
+        "Project cannot be deleted if it has folders",
+      );
     }
-
-    // Check if project exists and belongs to user
-    const existingProjectWithContainers =
-      await this._db.query.project.findFirst({
-        where: and(
-          eq(projectSchema.id, Number(projectId)),
-          eq(projectSchema.userId, userId),
-        ),
-        with: { codeContainers: true },
-      });
-    if (!existingProjectWithContainers) {
-      logger.warn(`Project ${projectId} not found for user ${userId}`);
-      return throwError(reshttp.notFoundCode, "Project not found");
-    }
-    const container = this._docker.getContainer(containerName);
-    if (
-      existingProjectWithContainers.codeContainers.containerStatus !== "STOPPED"
-    ) {
-      await container.stop();
-    }
-    await container.remove();
-    console.info("Container stopped and removed");
-    // Delete project (cascades to workspaces and containers)
     await this._db.delete(projectSchema).where(eq(projectSchema.id, projectId));
-
-    logger.info(`Deleted project ${projectId} for user ${userId}`);
-
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Project deleted successfully",
     });
   });
   public getAllProjects = asyncHandler(async (req: _Request, res) => {
-    // TODO: Validate req.query.page and req.query.pageSize with Zod middleware (page: number, pageSize: number)
     const userId = req.userFromToken?.uid;
     if (!userId) {
       logger.warn("Unauthorized attempt to get projects: No user ID found");
       return throwError(reshttp.unauthorizedCode, reshttp.unauthorizedMessage);
     }
 
-    // Parse query parameters
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const pageSize = parseInt(req.query.pageSize as string, 10) || 10;
+    // Parse and validate pagination params (TypeScript-safe)
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const pageSize = Math.min(
+      100, // Enforce maximum page size
+      Math.max(1, parseInt(req.query.pageSize as string, 10) || 10),
+    );
 
     // Calculate offset
     const offset = (page - 1) * pageSize;
 
-    // Fetch total count of projects
-    const [counts] = await this._db
-      .select({ count: count(projectSchema.id) })
-      .from(projectSchema)
-      .where(eq(projectSchema.userId, userId));
+    // Parallelize count and data fetching
+    const [countPromise, projectsPromise] = await Promise.all([
+      this._db
+        .select({ count: count() })
+        .from(projectSchema)
+        .where(eq(projectSchema.userId, userId)),
 
-    const totalRecord = Number(counts);
+      this._db.query.project.findMany({
+        where: eq(projectSchema.userId, userId),
+        orderBy: desc(projectSchema.createdAt),
+        offset,
+        limit: pageSize,
+      }),
+    ]);
+
+    const totalRecord = Number(countPromise[0]?.count ?? 0);
     const totalPage = Math.ceil(totalRecord / pageSize);
 
-    // Fetch paginated projects
-    const projects = await this._db.query.project.findMany({
-      where: eq(projectSchema.userId, userId),
-      offset,
-      limit: pageSize,
-      with: {
-        codeContainers: true,
-      },
-    });
-    // Build pagination metadata
-    const pagination: IPAGINATION = {
-      currentPage: page,
-      pageSize,
-      totalPage,
-      totalRecord,
-      hasNextPage: page < totalPage,
-      hasPreviousPage: page > 1,
-    };
+    const projects = projectsPromise.map((project, index) => ({
+      ...project,
+      projectNo: offset + index + 1,
+    }));
+
+    // Response structure
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Projects retrieved successfully",
-      projects,
-      pagination,
+      data: {
+        projects,
+        pagination: {
+          currentPage: page,
+          pageSize,
+          totalPage,
+          totalRecord,
+          hasNextPage: page < totalPage,
+          hasPreviousPage: page > 1,
+        } satisfies IPAGINATION,
+      },
     });
   });
 }

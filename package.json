@@ -67,6 +67,7 @@
     "drizzle-orm": "^0.40.0",
     "express": "^5.1.0",
     "geoip-lite": "^1.4.10",
+    "get-port": "^7.1.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.12.4",

@@ -9,7 +9,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { projectSchema } from "../projectSchema";
 import { workspaceSchema } from "../workspaceSchema";
-import { containerStatusEnum } from "../shared/enums";
 export const codeContainerSchema = pgTable(
   "codeContainers",
   {
@@ -20,7 +19,6 @@ export const codeContainerSchema = pgTable(
     codeContainerDescription: varchar("codeContainerDescription", {
       length: 500,
     }),
-    containerStatus: containerStatusEnum().default("STOPPED"),
     projectId: integer("projectId")
       .notNull()
       .references(() => projectSchema.id, {
@@ -49,7 +47,6 @@ export const codeContainerSchema = pgTable(
   (table) => [
     index("codeContainer_projectId_idx").on(table.projectId),
     index("codeContainer_workspaceId_idx").on(table.workspaceId),
-    index("codeContainer_isContainerRunning_idx").on(table.containerStatus),
   ],
 );
 
