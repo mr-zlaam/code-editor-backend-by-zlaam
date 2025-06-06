@@ -1,6 +1,7 @@
 import type Docker from "dockerode";
 import { createUniqueWorkspace } from "../util/globalUtil/createUniqueWorkspace.util";
 import { returnTemplateBasedOnTech } from "../util/appUtil/folderUtil/returnTemplateBasedOnTech.util";
+import { generateSlug } from "../util/quickUtil/slugStringGenerator.util";
 export function returnDockerConfig(
   port: number,
   username: string,
@@ -13,7 +14,7 @@ export function returnDockerConfig(
 
   const containerConfig: Docker.ContainerCreateOptions = {
     Image: `zlaam/code-server-dev:latest`,
-    name: `code-${username}-${fileNameSlug}`,
+    name: `code-${username}-${generateSlug(fileNameSlug)}`,
 
     HostConfig: {
       Binds: [`${hostPath}:/config/workspace`], // Critical mount

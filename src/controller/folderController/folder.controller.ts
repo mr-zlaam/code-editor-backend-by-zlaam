@@ -207,6 +207,30 @@ class FolderController {
       message: "Folder deleted successfully",
     });
   });
+
+  // ** Update folderName
+  public updateFolderName = asyncHandler(async (req: _Request, res) => {
+    const folderId = Number(req.params.folderId);
+    const { fileName } = req.body as { fileName: string };
+    if (!fileName) {
+      logger.info("filename is required");
+      throwError(reshttp.badRequestCode, "Filename is required");
+    }
+    const folder = await this._db.query.folder.findFirst({
+      where: eq(folderSchema.id, folderId),
+    });
+    if (!folder) {
+      logger.info("Folder not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
+    await this._db
+      .update(folderSchema)
+      .set({ fileName, fileNameSlug: generateSlug(fileName) })
+      .where(eq(folderSchema.id, folderId));
+    return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
+      message: "Folder name updated successfully",
+    });
+  });
 }
 
 export const folderController = (db: DatabaseClient) =>
