@@ -26,6 +26,7 @@ export const folderSchema = pgTable("folders", {
   projectLink: varchar("projectLink", { length: 2000 }).notNull(),
   status: folderStatusEnum().notNull().default("STOPPED"),
   storage: varchar("storage", { length: 100 }),
+  containerId: varchar("containerId", { length: 200 }).notNull().default(""),
   tech: varchar("tech", { length: 100 }).notNull(),
   createdAt: timestamp("createdAt", {
     mode: "date",

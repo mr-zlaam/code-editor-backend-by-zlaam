@@ -51,6 +51,7 @@ class FolderController {
       projectId: intProjectId,
       fileNameSlug: generateSlug(fileName),
       createdBy: userId,
+      containerId: dockerContainer.id,
       projectLink: `http://localhost:${port}`,
       tech,
       status: "RUNNING",
@@ -60,6 +61,104 @@ class FolderController {
       message: "Folder created successfully",
       projectLink: `http://localhost:${port}`,
     });
+  });
+  // Get all folders
+  public getAllFolders = asyncHandler(async (req: _Request, res) => {
+    const projectId = Number(req.params.projectId);
+    const folders = await this._db.query.folder.findMany({
+      where: eq(folderSchema.projectId, projectId),
+    });
+    return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
+      folders,
+    });
+  });
+
+  // Stop project under single folder
+  public stopProjectUnderFolder = asyncHandler(async (req: _Request, res) => {
+    const folderId = Number(req.params.folderId);
+    const { containerId, projectId } = req.query as {
+      containerId: string;
+      projectId: string;
+    };
+    if (!containerId) {
+      logger.info("Container id not found");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+    if (!folderId) {
+      logger.info("Folder id not found");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+    const folder = await this._db.query.folder.findFirst({
+      where: and(
+        eq(folderSchema.id, folderId),
+        eq(folderSchema.containerId, containerId),
+        eq(folderSchema.projectId, Number(projectId)),
+      ),
+    });
+    if (!folder) {
+      logger.info("Folder not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
+    const dockerContainer = this._docker.getContainer(folder.containerId);
+    await dockerContainer.stop();
+    await this._db
+      .update(folderSchema)
+      .set({
+        status: "STOPPED",
+      })
+      .where(eq(folderSchema.id, folderId));
+    return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
+      message: "Project stopped successfully",
+    });
+  });
+  // Open Project in vs code if the project is at stop position first start it and then open it
+
+  public openProjectInVsCode = asyncHandler(async (req: _Request, res) => {
+    const folderId = Number(req.params.folderId);
+    const { containerId } = req.query as {
+      containerId: string;
+    };
+    if (!containerId) {
+      logger.info("Container id not found");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+    if (!folderId) {
+      logger.info("Folder id not found");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+    const folder = await this._db.query.folder.findFirst({
+      where: eq(folderSchema.id, folderId),
+    });
+    if (!folder) {
+      logger.info("Folder not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
+    const projectStatus = folder.status;
+    const dockerContainer = this._docker.getContainer(folder.containerId);
+    if (!dockerContainer) {
+      logger.info("Docker container not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
+    if (projectStatus === "STOPPED") {
+      await dockerContainer.start();
+      await this._db.update(folderSchema).set({
+        status: "RUNNING",
+      });
+      return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
+        message: "Project opened successfully",
+        projectLink: folder.projectLink,
+      });
+    }
+    if (projectStatus === "RUNNING") {
+      return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
+        message: "Project opened successfully",
+        projectLink: folder.projectLink,
+      });
+    }
+    return throwError(
+      reshttp.internalServerErrorCode,
+      reshttp.internalServerErrorMessage,
+    );
   });
 }
 
