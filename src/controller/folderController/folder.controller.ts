@@ -11,6 +11,7 @@ import reshttp from "reshttp";
 import { throwError } from "../../util/globalUtil/throwError.util";
 import logger from "../../util/globalUtil/logger.util";
 import { and, eq } from "drizzle-orm";
+import { historySchema } from "../../db/schemas/historySchema";
 class FolderController {
   private readonly _db: DatabaseClient;
   private _docker: Docker;
@@ -46,16 +47,25 @@ class FolderController {
     );
     const dockerContainer = await this._docker.createContainer(containerConfig);
     await dockerContainer.start();
-    await this._db.insert(folderSchema).values({
-      fileName,
-      projectId: intProjectId,
-      fileNameSlug: generateSlug(fileName),
-      createdBy: userId,
-      containerId: dockerContainer.id,
-      projectLink: `http://localhost:${port}`,
-      tech,
-      status: "RUNNING",
-      storage: "DOCKER",
+    const [folder] = await this._db
+      .insert(folderSchema)
+      .values({
+        fileName,
+        projectId: intProjectId,
+        fileNameSlug: generateSlug(fileName),
+        createdBy: userId,
+        containerId: dockerContainer.id,
+        projectLink: `http://localhost:${port}`,
+        tech,
+        status: "RUNNING",
+        storage: "DOCKER",
+      })
+      .returning();
+    await this._db.insert(historySchema).values({
+      userId,
+      folderId: folder.id,
+      enterAt: new Date(),
+      exitAt: null,
     });
     return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Folder created successfully",
@@ -75,10 +85,12 @@ class FolderController {
 
   // Stop project under single folder
   public stopProjectUnderFolder = asyncHandler(async (req: _Request, res) => {
+    const userId = req.userFromToken!.uid;
     const folderId = Number(req.params.folderId);
-    const { containerId, projectId } = req.query as {
+    const { containerId, projectId, historyId } = req.query as {
       containerId: string;
       projectId: string;
+      historyId: string;
     };
     if (!containerId) {
       logger.info("Container id not found");
@@ -102,6 +114,17 @@ class FolderController {
     const dockerContainer = this._docker.getContainer(folder.containerId);
     await dockerContainer.stop();
     await this._db
+      .update(historySchema)
+      .set({
+        exitAt: new Date(),
+      })
+      .where(
+        and(
+          eq(historySchema.id, Number(historyId)),
+          eq(historySchema.userId, userId),
+        ),
+      );
+    await this._db
       .update(folderSchema)
       .set({
         status: "STOPPED",
@@ -118,6 +141,7 @@ class FolderController {
     const { containerId } = req.query as {
       containerId: string;
     };
+    const userId: string = req.userFromToken!.uid;
     if (!containerId) {
       logger.info("Container id not found");
       return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
@@ -141,6 +165,12 @@ class FolderController {
     }
     if (projectStatus === "STOPPED") {
       await dockerContainer.start();
+      await this._db.insert(historySchema).values({
+        userId,
+        folderId,
+        enterAt: new Date(),
+        exitAt: null,
+      });
       await this._db.update(folderSchema).set({
         status: "RUNNING",
       });
