@@ -160,6 +160,23 @@ class FolderController {
       reshttp.internalServerErrorMessage,
     );
   });
+  // * delete folder
+  public deleteFolder = asyncHandler(async (req: _Request, res) => {
+    const folderId = Number(req.params.folderId);
+    const folder = await this._db.query.folder.findFirst({
+      where: eq(folderSchema.id, folderId),
+    });
+    if (!folder) {
+      logger.info("Folder not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
+    const dockerContainer = this._docker.getContainer(folder.containerId);
+    await dockerContainer.remove();
+    await this._db.delete(folderSchema).where(eq(folderSchema.id, folderId));
+    return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
+      message: "Folder deleted successfully",
+    });
+  });
 }
 
 export const folderController = (db: DatabaseClient) =>
