@@ -46,7 +46,7 @@ class ProjectController {
     });
   });
   public updateProject = asyncHandler(async (req: _Request, res) => {
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = Number(req.params.id);
     if (isNaN(projectId)) {
       logger.warn("Invalid project ID provided");
       return throwError(reshttp.badRequestCode, "Invalid project ID");
@@ -57,6 +57,7 @@ class ProjectController {
       configuration: updatedConfiguration,
     } = req.body as TPROJECT;
     // TODO: Validate req.body with Zod middleware (projectName?: string, projectDescription?: string)
+    logger.info("data", { updatedProjectName, updatedConfiguration });
     const userId = req.userFromToken!.uid;
     const doesUserHaveProjectWithSameName =
       await this._db.query.project.findFirst({
@@ -150,17 +151,15 @@ class ProjectController {
     // Response structure
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Projects retrieved successfully",
-      data: {
-        projects,
-        pagination: {
-          currentPage: page,
-          pageSize,
-          totalPage,
-          totalRecord,
-          hasNextPage: page < totalPage,
-          hasPreviousPage: page > 1,
-        } satisfies IPAGINATION,
-      },
+      projects,
+      pagination: {
+        currentPage: page,
+        pageSize,
+        totalPage,
+        totalRecord,
+        hasNextPage: page < totalPage,
+        hasPreviousPage: page > 1,
+      } satisfies IPAGINATION,
     });
   });
 }

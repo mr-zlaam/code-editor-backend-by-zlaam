@@ -75,6 +75,10 @@ class FolderController {
   // Get all folders
   public getAllFolders = asyncHandler(async (req: _Request, res) => {
     const projectId = Number(req.params.projectId);
+    if (!projectId) {
+      logger.info("Project id not found");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
     const folders = await this._db.query.folder.findMany({
       where: eq(folderSchema.projectId, projectId),
     });

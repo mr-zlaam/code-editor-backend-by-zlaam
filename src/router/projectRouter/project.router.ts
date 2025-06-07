@@ -3,7 +3,10 @@ import { authMiddleware } from "../../middleware/globalMiddleware/auth.middlewar
 import { database } from "../../db/db";
 import { projectController } from "../../controller/projectController/project.controller";
 import { validator } from "../../middleware/globalMiddleware/validation.middleware";
-import { createProjectSchemaZ } from "../../validation/projectValidation/project.validation";
+import {
+  createProjectSchemaZ,
+  updateProjectSchemaZ,
+} from "../../validation/projectValidation/project.validation";
 
 export const projectRouter: Router = Router();
 
@@ -23,6 +26,7 @@ projectRouter
 projectRouter
   .route("/updateProject/:id")
   .patch(
+    validator(updateProjectSchemaZ),
     authMiddleware(database.db).checkToken,
     projectController(database.db).updateProject,
   );
