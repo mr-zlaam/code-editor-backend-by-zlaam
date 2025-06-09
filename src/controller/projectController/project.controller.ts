@@ -1,5 +1,10 @@
 import { count, and, eq, ne, desc } from "drizzle-orm";
-import { folderSchema, projectSchema, type TPROJECT } from "../../db/schemas/";
+import {
+  folderSchema,
+  groupSchema,
+  projectSchema,
+  type TPROJECT,
+} from "../../db/schemas/";
 import { asyncHandler } from "../../util/globalUtil/asyncHandler.util";
 import { httpResponse } from "../../util/globalUtil/apiResponse.util";
 import { throwError } from "../../util/globalUtil/throwError.util";
@@ -33,13 +38,22 @@ class ProjectController {
     if (doesUserHaveProjectWithSameName) {
       return throwError(reshttp.badRequestCode, "Project name already exists");
     }
-    await this._db.insert(projectSchema).values({
-      projectName,
-      projectNameSlug: generateSlug(projectName),
-      userId,
-      storage: "0",
-      configuration,
-      createdBy: userId,
+    const [project] = await this._db
+      .insert(projectSchema)
+      .values({
+        projectName,
+        projectNameSlug: generateSlug(projectName),
+        userId,
+        storage: "0",
+        configuration,
+        createdBy: userId,
+      })
+      .returning({ id: projectSchema.id });
+    await this._db.insert(groupSchema).values({
+      groupType: "PROJECT",
+      name: projectName + " Group",
+      ownerId: userId,
+      projectId: project.id,
     });
     httpResponse(req, res, reshttp.createdCode, reshttp.createdMessage, {
       message: "Project created successfully",

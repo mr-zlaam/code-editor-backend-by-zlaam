@@ -1,6 +1,6 @@
 import { returnDockerConfig } from "../../config/container.config";
 import type { DatabaseClient } from "../../db/db";
-import { folderSchema, type IFOLDER } from "../../db/schemas";
+import { folderSchema, groupSchema, type IFOLDER } from "../../db/schemas";
 import type { _Request } from "../../middleware/globalMiddleware/auth.middleware";
 import { asyncHandler } from "../../util/globalUtil/asyncHandler.util";
 import Docker from "dockerode";
@@ -58,15 +58,25 @@ class FolderController {
         projectLink: `http://localhost:${port}`,
         tech,
         status: "RUNNING",
-        storage: "DOCKER",
+        //** write Math.random() between 1 to 100 including upto 1 decimal point */
+        storage: (Math.floor(Math.random() * 100) + 1).toString(),
       })
       .returning();
-    await this._db.insert(historySchema).values({
-      userId,
-      folderId: folder.id,
-      enterAt: new Date(),
-      exitAt: null,
-    });
+
+    await Promise.all([
+      this._db.insert(historySchema).values({
+        userId,
+        folderId: folder.id,
+        enterAt: new Date(),
+        exitAt: null,
+      }),
+      this._db.insert(groupSchema).values({
+        groupType: "FOLDER",
+        folderId: folder.id,
+        ownerId: userId,
+        name: folder.fileName + " Group",
+      }),
+    ]);
     return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Folder created successfully",
       projectLink: `http://localhost:${port}`,

@@ -40,3 +40,22 @@ export type TBUYERPARTNERSHIP =
   | "DKC_INVESTOR"
   | "DKC_BRICK_AND_MORTAR"
   | "DKC_FRANCHISE";
+
+export type TTIMEUNIT =
+  | "second"
+  | "seconds"
+  | "minute"
+  | "minutes"
+  | "hour"
+  | "hours"
+  | "day"
+  | "days"
+  | "week"
+  | "weeks"
+  | "month"
+  | "months"
+  | "year"
+  | "years";
+
+// Define the time string type
+export type TTIMESTRING = `${number} ${TTIMEUNIT}`;
