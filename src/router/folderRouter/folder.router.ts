@@ -38,3 +38,10 @@ folderRouter
     authMiddleware(database.db).checkToken,
     folderController(database.db).updateFolderName,
   );
+
+folderRouter
+  .route("/restartProject/:folderId")
+  .patch(
+    authMiddleware(database.db).checkToken,
+    folderController(database.db).restartProject,
+  );

@@ -6,7 +6,7 @@ import { historyController } from "../../controller/historyController/history.co
 export const historyRouter: Router = Router();
 
 historyRouter
-  .route("/getAllHistory")
+  .route("/getAllHistory/:folderId")
   .get(
     authMiddleware(database.db).checkToken,
     historyController(database.db).getAllHistoryHistory,

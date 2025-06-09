@@ -91,10 +91,10 @@ class FolderController {
   public stopProjectUnderFolder = asyncHandler(async (req: _Request, res) => {
     const userId = req.userFromToken!.uid;
     const folderId = Number(req.params.folderId);
-    const { containerId, projectId, historyId } = req.query as {
+    const { containerId, projectId } = req.body as {
       containerId: string;
-      projectId: string;
-      historyId: string;
+      projectId: number;
+      //      historyId: number;
     };
     if (!containerId) {
       logger.info("Container id not found");
@@ -104,6 +104,11 @@ class FolderController {
       logger.info("Folder id not found");
       return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
     }
+    if (!projectId) {
+      logger.info("Project id not found");
+      return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
+    }
+
     const folder = await this._db.query.folder.findFirst({
       where: and(
         eq(folderSchema.id, folderId),
@@ -124,7 +129,7 @@ class FolderController {
       })
       .where(
         and(
-          eq(historySchema.id, Number(historyId)),
+          //          eq(historySchema.id, Number(historyId)),
           eq(historySchema.userId, userId),
         ),
       );
@@ -140,9 +145,9 @@ class FolderController {
   });
   // Open Project in vs code if the project is at stop position first start it and then open it
 
-  public openProjectInVsCode = asyncHandler(async (req: _Request, res) => {
+  public restartProject = asyncHandler(async (req: _Request, res) => {
     const folderId = Number(req.params.folderId);
-    const { containerId } = req.query as {
+    const { containerId } = req.body as {
       containerId: string;
     };
     const userId: string = req.userFromToken!.uid;
@@ -155,7 +160,11 @@ class FolderController {
       return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
     }
     const folder = await this._db.query.folder.findFirst({
-      where: eq(folderSchema.id, folderId),
+      where: and(
+        eq(folderSchema.id, folderId),
+        eq(folderSchema.containerId, containerId),
+        eq(folderSchema.status, "STOPPED"),
+      ),
     });
     if (!folder) {
       logger.info("Folder not found");
@@ -169,15 +178,19 @@ class FolderController {
     }
     if (projectStatus === "STOPPED") {
       await dockerContainer.start();
+
       await this._db.insert(historySchema).values({
         userId,
         folderId,
         enterAt: new Date(),
         exitAt: null,
       });
-      await this._db.update(folderSchema).set({
-        status: "RUNNING",
-      });
+      await this._db
+        .update(folderSchema)
+        .set({
+          status: "RUNNING",
+        })
+        .where(eq(folderSchema.id, folderId));
       return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
         message: "Project opened successfully",
         projectLink: folder.projectLink,
@@ -203,6 +216,10 @@ class FolderController {
     if (!folder) {
       logger.info("Folder not found");
       return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
+    if (folder.status === "RUNNING") {
+      logger.info("Only stoppped project can be deleted");
+      throwError(reshttp.badRequestCode, "Please stop the project first");
     }
     const dockerContainer = this._docker.getContainer(folder.containerId);
     await dockerContainer.remove();

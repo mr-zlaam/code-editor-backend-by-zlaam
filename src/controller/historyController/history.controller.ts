@@ -3,7 +3,6 @@ import type { DatabaseClient } from "../../db/db";
 import type { _Request } from "../../middleware/globalMiddleware/auth.middleware";
 import { asyncHandler } from "../../util/globalUtil/asyncHandler.util";
 import { historySchema } from "../../db/schemas/historySchema";
-import appConstant from "../../constant/app.constant";
 import { httpResponse } from "../../util/globalUtil/apiResponse.util";
 import reshttp from "reshttp";
 import type { IPAGINATION } from "../../type/types";
@@ -28,7 +27,7 @@ class HistoryController {
 
     const history = await this._db.query.history.findMany({
       where: and(eq(historySchema.folderId, folderId)),
-      with: { user: { columns: appConstant.SELECTED_COLUMNS.FROM.USER } },
+      with: { user: { columns: { fullName: true } } },
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
