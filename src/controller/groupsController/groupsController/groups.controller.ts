@@ -168,17 +168,23 @@ class GroupsController {
 
   public updateStatusOfGroupJoinRequest = asyncHandler(
     async (req: _Request, res) => {
-      const { groupId, status, userId } = req.body as {
+      const { groupId, status, userId, requestId } = req.body as {
         groupId: string;
         status: "ACCEPTED" | "REJECTED";
         userId: string;
+        requestId: string;
       };
+
       if (!groupId) {
         return throwError(reshttp.badRequestCode, "id is required");
       }
       if (!userId) {
         return throwError(reshttp.badRequestCode, "userId is required");
       }
+      if (!requestId) {
+        return throwError(reshttp.badRequestCode, "requestId is required");
+      }
+      console.info(requestId);
       const isRequestExist = await this._db.query.groupJoinRequests.findFirst({
         where: and(
           eq(groupJoinRequestsSchema.groupId, Number(groupId)),
@@ -196,34 +202,38 @@ class GroupsController {
       }
 
       if (status === "ACCEPTED") {
-        const [data] = await this._db
-          .update(groupJoinRequestsSchema)
-          .set({
-            requestStatus: "ACCEPTED",
-          })
-          .where(
-            and(
-              eq(groupJoinRequestsSchema.groupId, Number(groupId)),
-              eq(groupJoinRequestsSchema.userId, userId),
-            ),
-          )
-          .returning({
-            userId: groupJoinRequestsSchema.userId,
-            groupId: groupJoinRequestsSchema.groupId,
+        await this._db.transaction(async (tx) => {
+          const [data] = await tx
+            .update(groupJoinRequestsSchema)
+            .set({
+              requestStatus: "ACCEPTED",
+            })
+            .where(
+              and(
+                eq(groupJoinRequestsSchema.groupId, Number(groupId)),
+                eq(groupJoinRequestsSchema.userId, userId),
+                eq(groupJoinRequestsSchema.id, Number(requestId)),
+              ),
+            )
+            .returning({
+              userId: groupJoinRequestsSchema.userId,
+              groupId: groupJoinRequestsSchema.groupId,
+            });
+
+          await tx.insert(groupMembersSchema).values({
+            groupId: data.groupId,
+            userId: data.userId as string,
+            joinedAt: new Date(),
           });
-        await this._db.insert(groupMembersSchema).values({
-          groupId: data.groupId,
-          userId: data.userId as string,
-          joinedAt: new Date(),
+          await tx
+            .delete(groupJoinRequestsSchema)
+            .where(
+              and(
+                eq(groupJoinRequestsSchema.groupId, Number(groupId)),
+                eq(groupJoinRequestsSchema.userId, userId),
+              ),
+            );
         });
-        await this._db
-          .delete(groupJoinRequestsSchema)
-          .where(
-            and(
-              eq(groupJoinRequestsSchema.groupId, Number(groupId)),
-              eq(groupJoinRequestsSchema.userId, userId),
-            ),
-          );
         httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
           message: "Request has been accepted",
         });
@@ -235,6 +245,7 @@ class GroupsController {
             and(
               eq(groupJoinRequestsSchema.groupId, Number(groupId)),
               eq(groupJoinRequestsSchema.userId, userId),
+              eq(groupJoinRequestsSchema.id, Number(requestId)),
             ),
           );
         httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {

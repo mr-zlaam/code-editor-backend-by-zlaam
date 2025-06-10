@@ -47,7 +47,7 @@ CREATE TABLE "groupInviteLinks" (
 CREATE TABLE "groupJoinRequests" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"groupId" integer NOT NULL,
-	"userId" uuid NOT NULL,
+	"userId" uuid,
 	"requestStatus" "requestStatus" DEFAULT 'PENDING' NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	"updatedAt" timestamp DEFAULT now() NOT NULL
@@ -104,14 +104,14 @@ CREATE TABLE "rate_limiter_flexible" (
 --> statement-breakpoint
 ALTER TABLE "folders" ADD CONSTRAINT "folders_projectId_projects_id_fk" FOREIGN KEY ("projectId") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "folders" ADD CONSTRAINT "folders_createdBy_users_uid_fk" FOREIGN KEY ("createdBy") REFERENCES "public"."users"("uid") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groupInviteLinks" ADD CONSTRAINT "groupInviteLinks_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "groupInviteLinks" ADD CONSTRAINT "groupInviteLinks_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "groupJoinRequests" ADD CONSTRAINT "groupJoinRequests_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "groupJoinRequests" ADD CONSTRAINT "groupJoinRequests_userId_users_uid_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("uid") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groupMembers" ADD CONSTRAINT "groupMembers_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "groupMembers" ADD CONSTRAINT "groupMembers_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "groupMembers" ADD CONSTRAINT "groupMembers_userId_users_uid_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("uid") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groups" ADD CONSTRAINT "groups_projectId_projects_id_fk" FOREIGN KEY ("projectId") REFERENCES "public"."projects"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groups" ADD CONSTRAINT "groups_folderId_folders_id_fk" FOREIGN KEY ("folderId") REFERENCES "public"."folders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groups" ADD CONSTRAINT "groups_ownerId_users_uid_fk" FOREIGN KEY ("ownerId") REFERENCES "public"."users"("uid") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "groups" ADD CONSTRAINT "groups_projectId_projects_id_fk" FOREIGN KEY ("projectId") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "groups" ADD CONSTRAINT "groups_folderId_folders_id_fk" FOREIGN KEY ("folderId") REFERENCES "public"."folders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "groups" ADD CONSTRAINT "groups_ownerId_users_uid_fk" FOREIGN KEY ("ownerId") REFERENCES "public"."users"("uid") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "history" ADD CONSTRAINT "history_folderId_folders_id_fk" FOREIGN KEY ("folderId") REFERENCES "public"."folders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "history" ADD CONSTRAINT "history_userId_users_uid_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("uid") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_userId_users_uid_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("uid") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -121,5 +121,5 @@ CREATE INDEX "user_createdAt_idx" ON "users" USING btree ("createdAt");--> state
 CREATE INDEX "fullName_idx" ON "users" USING btree ("fullName");--> statement-breakpoint
 CREATE INDEX "isVerified_idx" ON "users" USING btree ("isVerified");--> statement-breakpoint
 CREATE UNIQUE INDEX "unique_pending_request" ON "groupJoinRequests" USING btree ("groupId","userId") WHERE ("requestStatus" = 'PENDING');--> statement-breakpoint
-CREATE UNIQUE INDEX "unique_membership" ON "groupMembers" USING btree ("groupId","userId");--> statement-breakpoint
+CREATE UNIQUE INDEX "unique_membership" ON "groupMembers" USING btree ("userId");--> statement-breakpoint
 CREATE INDEX "key_idx" ON "rate_limiter_flexible" USING btree ("key");

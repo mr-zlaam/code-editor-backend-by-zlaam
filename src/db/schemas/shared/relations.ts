@@ -64,7 +64,10 @@ export const projectRelations = relations(projectSchema, ({ one, many }) => ({
     references: [userSchema.uid],
   }),
   folders: many(folderSchema),
-  groups: many(groupSchema),
+  group: one(groupSchema, {
+    fields: [projectSchema.id],
+    references: [groupSchema.projectId],
+  }),
 }));
 
 // Folder Relations
@@ -74,7 +77,10 @@ export const folderRelations = relations(folderSchema, ({ one, many }) => ({
     references: [projectSchema.id],
   }),
   history: many(historySchema),
-  groups: many(groupSchema),
+  group: one(groupSchema, {
+    fields: [folderSchema.id],
+    references: [groupSchema.folderId],
+  }),
 }));
 
 // History Relations

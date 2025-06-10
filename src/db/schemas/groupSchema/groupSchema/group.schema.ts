@@ -21,12 +21,12 @@ export const groupSchema = pgTable(
     groupType: groupTypeEnum("type").notNull(),
     projectId: integer("projectId")
       .unique()
-      .references(() => projectSchema.id),
+      .references(() => projectSchema.id, { onDelete: "cascade" }),
     folderId: integer("folderId")
       .unique()
-      .references(() => folderSchema.id),
+      .references(() => folderSchema.id, { onDelete: "cascade" }),
     ownerId: uuid("ownerId")
-      .references(() => userSchema.uid)
+      .references(() => userSchema.uid, { onDelete: "cascade" })
       .notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -34,7 +34,12 @@ export const groupSchema = pgTable(
   () => [
     check(
       "project_or_folder",
-      sql`("projectId" IS NOT NULL AND "folderId" IS NULL) OR ("projectId" IS NULL AND "folderId" IS NOT NULL)`,
+
+      sql`(
+  ("projectId" IS NOT NULL AND "folderId" IS NULL) OR 
+  ("projectId" IS NULL AND "folderId" IS NOT NULL) OR 
+  ("projectId" IS NOT NULL AND "folderId" IS NOT NULL)
+)`,
     ),
   ],
 );

@@ -158,6 +158,7 @@ class ProjectController {
 
       this._db.query.project.findMany({
         where: eq(projectSchema.userId, userId),
+        with: { group: { columns: { id: true } } },
         orderBy: desc(projectSchema.createdAt),
         offset,
         limit: pageSize,
@@ -175,7 +176,7 @@ class ProjectController {
     // Response structure
     httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Projects retrieved successfully",
-      projects,
+      projects: projects.length > 0 ? projects : [],
       pagination: {
         currentPage: page,
         pageSize,

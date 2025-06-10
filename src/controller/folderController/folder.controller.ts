@@ -43,12 +43,14 @@ class FolderController {
       logger.info("Folder already exists");
       return throwError(reshttp.badRequestCode, reshttp.badRequestMessage);
     }
+    const containerName = `code-${userId.split("-")[0]}-${generateSlug(fileName)}`;
     const port = await getPort();
     const containerConfig = returnDockerConfig(
       port,
       userId.split("-")[0],
       fileName,
       tech,
+      containerName,
     );
     const dockerContainer = await this._docker.createContainer(containerConfig);
     await dockerContainer.start();
@@ -59,7 +61,7 @@ class FolderController {
         projectId: intProjectId,
         fileNameSlug: generateSlug(fileName),
         createdBy: userId,
-        containerId: dockerContainer.id,
+        containerId: containerName,
         projectLink: `http://localhost:${port}`,
         tech,
         status: "RUNNING",
@@ -105,6 +107,9 @@ class FolderController {
     }
     const folders = await this._db.query.folder.findMany({
       where: eq(folderSchema.projectId, projectId),
+      with: {
+        group: { columns: { id: true } },
+      },
     });
     return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       folders,
@@ -234,9 +239,11 @@ class FolderController {
   // * delete folder
   public deleteFolder = asyncHandler(async (req: _Request, res) => {
     const folderId = Number(req.params.folderId);
+
     const folder = await this._db.query.folder.findFirst({
       where: eq(folderSchema.id, folderId),
     });
+
     if (!folder) {
       logger.info("Folder not found");
       return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
@@ -245,9 +252,14 @@ class FolderController {
       logger.info("Only stoppped project can be deleted");
       throwError(reshttp.badRequestCode, "Please stop the project first");
     }
+    await this._db.delete(folderSchema).where(eq(folderSchema.id, folder.id));
     const dockerContainer = this._docker.getContainer(folder.containerId);
+    console.info(dockerContainer.logs({ stdout: true, stderr: true }));
+    if (!dockerContainer) {
+      logger.info("Docker container not found");
+      return throwError(reshttp.notFoundCode, reshttp.notFoundMessage);
+    }
     await dockerContainer.remove();
-    await this._db.delete(folderSchema).where(eq(folderSchema.id, folderId));
     return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Folder deleted successfully",
     });
