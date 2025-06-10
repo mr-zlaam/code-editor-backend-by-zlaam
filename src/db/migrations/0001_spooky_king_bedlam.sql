@@ -1,0 +1,1 @@
+ALTER TABLE "groupJoinRequests" ALTER COLUMN "userId" DROP NOT NULL;

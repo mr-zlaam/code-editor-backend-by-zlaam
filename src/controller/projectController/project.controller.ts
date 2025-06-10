@@ -1,6 +1,7 @@
 import { count, and, eq, ne, desc } from "drizzle-orm";
 import {
   folderSchema,
+  groupMembersSchema,
   groupSchema,
   projectSchema,
   type TPROJECT,
@@ -49,11 +50,20 @@ class ProjectController {
         createdBy: userId,
       })
       .returning({ id: projectSchema.id });
-    await this._db.insert(groupSchema).values({
-      groupType: "PROJECT",
-      name: projectName + " Group",
-      ownerId: userId,
-      projectId: project.id,
+    const [group] = await this._db
+      .insert(groupSchema)
+      .values({
+        groupType: "PROJECT",
+        name: projectName + " Group",
+        ownerId: userId,
+        projectId: project.id,
+      })
+      .returning();
+
+    await this._db.insert(groupMembersSchema).values({
+      groupId: group.id,
+      userId: group.ownerId,
+      joinedAt: new Date(),
     });
     httpResponse(req, res, reshttp.createdCode, reshttp.createdMessage, {
       message: "Project created successfully",

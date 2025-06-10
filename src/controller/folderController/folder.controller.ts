@@ -1,6 +1,11 @@
 import { returnDockerConfig } from "../../config/container.config";
 import type { DatabaseClient } from "../../db/db";
-import { folderSchema, groupSchema, type IFOLDER } from "../../db/schemas";
+import {
+  folderSchema,
+  groupMembersSchema,
+  groupSchema,
+  type IFOLDER,
+} from "../../db/schemas";
 import type { _Request } from "../../middleware/globalMiddleware/auth.middleware";
 import { asyncHandler } from "../../util/globalUtil/asyncHandler.util";
 import Docker from "dockerode";
@@ -63,20 +68,29 @@ class FolderController {
       })
       .returning();
 
-    await Promise.all([
+    const [, [group]] = await Promise.all([
       this._db.insert(historySchema).values({
         userId,
         folderId: folder.id,
         enterAt: new Date(),
         exitAt: null,
       }),
-      this._db.insert(groupSchema).values({
-        groupType: "FOLDER",
-        folderId: folder.id,
-        ownerId: userId,
-        name: folder.fileName + " Group",
-      }),
+      this._db
+        .insert(groupSchema)
+        .values({
+          groupType: "FOLDER",
+          folderId: folder.id,
+          ownerId: userId,
+          name: folder.fileName + " Group",
+        })
+        .returning(),
     ]);
+
+    this._db.insert(groupMembersSchema).values({
+      groupId: group.id,
+      userId: group.ownerId,
+      joinedAt: new Date(),
+    });
     return httpResponse(req, res, reshttp.okCode, reshttp.okMessage, {
       message: "Folder created successfully",
       projectLink: `http://localhost:${port}`,

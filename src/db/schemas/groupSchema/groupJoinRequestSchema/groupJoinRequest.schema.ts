@@ -18,9 +18,7 @@ export const groupJoinRequestsSchema = pgTable(
     groupId: integer("groupId")
       .references(() => groupSchema.id)
       .notNull(),
-    userId: uuid("userId")
-      .references(() => userSchema.uid)
-      .notNull(),
+    userId: uuid("userId").references(() => userSchema.uid),
     requestStatus: requestStatusEnum().notNull().default("PENDING"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),

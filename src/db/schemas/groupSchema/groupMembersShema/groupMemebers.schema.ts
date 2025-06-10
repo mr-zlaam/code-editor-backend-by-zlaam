@@ -21,7 +21,7 @@ export const groupMembersSchema = pgTable(
       .notNull(),
     joinedAt: timestamp("joinedAt").defaultNow().notNull(),
   },
-  (table) => [uniqueIndex("unique_membership").on(table.groupId, table.userId)],
+  (table) => [uniqueIndex("unique_membership").on(table.userId)],
 );
 
 export type TGROUPMEMBERS = typeof groupMembersSchema.$inferSelect;
